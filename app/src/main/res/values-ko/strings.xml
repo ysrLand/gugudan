@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">구구단</string>
+    <string name="table">%s 단</string>
+    <string name="correct">정답입니다</string>
+    <string name="wrong">노력이 더 필요합니다</string>
+    <string name="go_to_game">구구단 게임하기</string>
+</resources>
