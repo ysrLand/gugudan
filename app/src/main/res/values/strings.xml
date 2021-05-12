@@ -1,7 +1,9 @@
 <resources>
     <string name="app_name">Gugudan</string>
     <string name="table">Table %s</string>
+    <string name="progress">%d / %d</string>
     <string name="correct">Correct</string>
     <string name="wrong">Wrong</string>
+    <string name="clear">Clear %d table</string>
     <string name="go_to_game">Play gugudan game</string>
 </resources>

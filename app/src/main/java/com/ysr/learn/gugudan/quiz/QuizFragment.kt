@@ -15,21 +15,28 @@ import androidx.lifecycle.ViewModelProvider
 import com.ysr.learn.gugudan.R
 import com.ysr.learn.gugudan.viewmodels.CentralViewModel
 import java.lang.StringBuilder
-import kotlin.random.Random
 
-private const val QUIZ_INDEX = "quiz_index"
+private val TAG = QuizFragment::class.simpleName
+private const val QUIZ_TABLE = "quiz_table"
+private const val questionSet = 9
 
 class QuizFragment : Fragment() {
-    private var quizIndex: Int = 0
+    private var table: Int = 0
     private var multiplicand: Int = 0
+    private var multipliers: MutableList<Int> = mutableListOf()
     private var multiplier: Int = 0
-    private var result: Int = 0
+    private var answer: Int = 0
+    private var step: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            quizIndex = it.getInt(QUIZ_INDEX)
-            multiplicand = quizIndex
+            table = it.getInt(QUIZ_TABLE)
+            multiplicand = table
+            with(multipliers) {
+                addAll((1..questionSet).toMutableList())
+                addAll((1..questionSet).toMutableList().shuffled())
+            }
         }
     }
 
@@ -38,11 +45,12 @@ class QuizFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val columnCount = 3
-        val viewModelStore = requireActivity().viewModelStore
         val view = inflater.inflate(R.layout.fragment_quiz, container, false)
-        val equation = view.findViewById<TextView>(R.id.eval)
-        val grid = view.findViewById<GridLayout>(R.id.keypad)
-        val keypadContent = KeypadContent(requireContext(), requireActivity().viewModelStore)
+        val equationView = view.findViewById<TextView>(R.id.eval)
+        val gridView = view.findViewById<GridLayout>(R.id.keypad)
+        val progressView = view.findViewById<TextView>(R.id.progress)
+        val viewModelStore = requireActivity().viewModelStore
+        val keypadContent = KeypadContent(requireContext(), viewModelStore)
         for (index in 0 until keypadContent.items.size) {
             val layout = View.inflate(context, R.layout.item_keypad, null)
                 .findViewById<ConstraintLayout>(R.id.layout)
@@ -55,44 +63,67 @@ class QuizFragment : Fragment() {
                 GridLayout.spec(index % columnCount, 1, 1f)
             )
             layout.layoutParams = params
-            grid.addView(layout)
+            gridView.addView(layout)
         }
         val viewModel =
             ViewModelProvider(viewModelStore, ViewModelProvider.NewInstanceFactory()).get(
                 CentralViewModel::class.java
             )
-        viewModel.digit.observe(viewLifecycleOwner, Observer {
-            when (it) {
-                -2 -> {
-                    if (multiplicand * multiplier == result) {
-                        showToast(getString(R.string.correct))
-                        generateEquation()
-                        putEquation(equation)
-                    } else {
-                        showToast(getString(R.string.wrong))
-                        putEquation(equation)
+        with(viewModel) {
+            digit.observe(viewLifecycleOwner, Observer {
+                when (it) {
+                    -2 -> {
+                        if (answer == multiplicand * multiplier) {
+                            if (step == multipliers.size) {
+                                showToast(getString(R.string.clear, this@QuizFragment.table))
+                                removeThis()
+                            } else {
+                                showToast(getString(R.string.correct))
+                                generateEquation()
+                                updateProgress(progressView)
+                                putEquation(equationView)
+                            }
+                        } else {
+                            showToast(getString(R.string.wrong))
+                            putEquation(equationView)
+                        }
+                        clearAnswer()
                     }
-                    clearResult()
-
+                    -1 -> {
+                        answer /= 10
+                        putEquation(equationView, answer)
+                    }
+                    else -> {
+                        answer = answer * 10 + it
+                        putEquation(equationView, answer)
+                    }
                 }
-                -1 -> {
-                    result = result / 10
-                    putEquation(equation, result)
-                }
-                else -> {
-                    result = result * 10 + it
-                    putEquation(equation, result)
-                }
-            }
-        })
+            })
+        }
         generateEquation()
-        putEquation(equation)
+        updateProgress(progressView)
+        putEquation(equationView)
         return view
     }
 
+    private fun removeThis() {
+        requireActivity().supportFragmentManager
+            .beginTransaction()
+            .remove(this)
+            .commitAllowingStateLoss()
+        requireActivity().supportFragmentManager.popBackStack()
+    }
+
     private fun generateEquation() {
-        val rand = Random(System.currentTimeMillis())
-        multiplier = rand.nextInt(1, 10)
+        multiplier = try {
+            multipliers[step++]
+        } catch (e:IndexOutOfBoundsException) {
+            0
+        }
+    }
+
+    private fun updateProgress(textView: TextView) {
+        textView.text = getString(R.string.progress, step, multipliers.size)
     }
 
     private fun putEquation(textView: TextView, r: Int = 0) {
@@ -118,8 +149,23 @@ class QuizFragment : Fragment() {
         toast.show()
     }
 
-    private fun clearResult() {
-        result = 0
+    private fun clearAnswer() {
+        answer = 0
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        val viewModel =
+            ViewModelProvider(
+                requireActivity().viewModelStore,
+                ViewModelProvider.NewInstanceFactory()
+            ).get(
+                CentralViewModel::class.java
+            )
+        with(viewModel) {
+            digit.removeObservers(viewLifecycleOwner)
+            digit.value = 0
+        }
     }
 
     companion object {
@@ -127,7 +173,7 @@ class QuizFragment : Fragment() {
         fun newInstance(quizIndex: Int) =
             QuizFragment().apply {
                 arguments = Bundle().apply {
-                    putInt(QUIZ_INDEX, quizIndex)
+                    putInt(QUIZ_TABLE, quizIndex)
                 }
             }
     }
