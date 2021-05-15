@@ -15,10 +15,9 @@
         app:layout_constraintGuide_percent="0.25" />
 
     <TextView
-        android:id="@+id/eval"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:gravity="center"
+        android:id="@+id/equation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:textAppearance="@style/DefaultTextAppearance"
         app:layout_constraintBottom_toBottomOf="@id/guideline"
         app:layout_constraintEnd_toEndOf="parent"
